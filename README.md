@@ -7,13 +7,13 @@ Official installer package for ProxyRay Worker nodes.
 Install worker dengan 1 command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/proxyray-worker-installer/main/install-worker-online.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo bash
 ```
 
 **ATAU**
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/YOUR_USERNAME/proxyray-worker-installer/main/install-worker-online.sh | sudo bash
+wget -qO- https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo bash
 ```
 
 ## 📦 Offline Install
@@ -22,7 +22,7 @@ Untuk server tanpa internet:
 
 ```bash
 # Download release
-wget https://github.com/YOUR_USERNAME/proxyray-worker-installer/releases/download/v1.0.0/proxyray-worker-installer-v1.0.0.tar.gz
+wget https://github.com/hamzah79/proxyray-worker-installer/releases/download/v1.0.0/proxyray-worker-installer-v1.0.0.tar.gz
 
 # Extract
 tar xzf proxyray-worker-installer-v1.0.0.tar.gz
@@ -92,7 +92,7 @@ To update to a new version:
 ```bash
 cd /opt/proxy-worker
 docker compose down
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/proxyray-worker-installer/main/install-worker-online.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo bash
 ```
 
 ## 🐛 Troubleshooting
