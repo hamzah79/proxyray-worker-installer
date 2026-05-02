@@ -1,0 +1,9 @@
+# Exclude old/backup files
+file-worker.tar.gz
+
+# Exclude compiled/built files (optional - bisa di-include jika mau)
+# proxy-worker-master.tar.gz
+# proxyray-worker-installer-v1.0.0.tar.gz
+
+# Git files
+.git/
