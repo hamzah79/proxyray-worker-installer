@@ -1,11 +1,21 @@
 #!/bin/bash
 #
 # ProxyRay Worker - One-Line Installer
-# Version: 1.0.0
+# Version: 1.0.1
 # 
-# Usage: curl -fsSL http://YOUR_DOMAIN/downloads/install-worker-online.sh | sudo bash
-#        atau
-#        wget -qO- http://YOUR_DOMAIN/downloads/install-worker-online.sh | sudo bash
+# Usage: 
+#   Method 1 (Interactive):
+#     wget https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh
+#     sudo bash install-worker-online.sh
+#
+#   Method 2 (With environment variables):
+#     export WORKER_ID="worker-2"
+#     export WORKER_REGION="sg"
+#     export MASTER_IP="84.247.136.121"
+#     export DB_PASS="proxy_pass"
+#     export REDIS_PASS="proxy_redis_pass"
+#     export TOR_INSTANCES="20"
+#     curl -fsSL https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo -E bash
 #
 
 set -e
@@ -64,16 +74,56 @@ echo "  Worker Configuration"
 echo "========================================="
 echo ""
 
-# Ask for configuration
-read -p "Enter Worker ID (e.g., worker-2): " WORKER_ID
-read -p "Enter Worker Region (e.g., sg, us, eu): " WORKER_REGION
-read -p "Enter Master Server IP: " MASTER_IP
-read -p "Enter Master Database Password [proxy_pass]: " DB_PASS
-DB_PASS=${DB_PASS:-proxy_pass}
-read -p "Enter Master Redis Password [proxy_redis_pass]: " REDIS_PASS
-REDIS_PASS=${REDIS_PASS:-proxy_redis_pass}
-read -p "Enter number of Tor instances [20]: " TOR_INSTANCES
-TOR_INSTANCES=${TOR_INSTANCES:-20}
+# Check if running in pipe mode (stdin not a terminal)
+if [ -t 0 ]; then
+    # Interactive mode - can use read
+    INTERACTIVE=true
+else
+    # Pipe mode - use environment variables
+    INTERACTIVE=false
+    echo "⚠️  Running in pipe mode - using environment variables"
+    echo "   Set WORKER_ID, WORKER_REGION, MASTER_IP, etc."
+    echo ""
+fi
+
+# Ask for configuration or use environment variables
+if [ "$INTERACTIVE" = true ]; then
+    read -p "Enter Worker ID (e.g., worker-2): " WORKER_ID
+    read -p "Enter Worker Region (e.g., sg, us, eu): " WORKER_REGION
+    read -p "Enter Master Server IP: " MASTER_IP
+    read -p "Enter Master Database Password [proxy_pass]: " DB_PASS
+    DB_PASS=${DB_PASS:-proxy_pass}
+    read -p "Enter Master Redis Password [proxy_redis_pass]: " REDIS_PASS
+    REDIS_PASS=${REDIS_PASS:-proxy_redis_pass}
+    read -p "Enter number of Tor instances [20]: " TOR_INSTANCES
+    TOR_INSTANCES=${TOR_INSTANCES:-20}
+else
+    # Use environment variables with defaults
+    WORKER_ID=${WORKER_ID:-}
+    WORKER_REGION=${WORKER_REGION:-}
+    MASTER_IP=${MASTER_IP:-}
+    DB_PASS=${DB_PASS:-proxy_pass}
+    REDIS_PASS=${REDIS_PASS:-proxy_redis_pass}
+    TOR_INSTANCES=${TOR_INSTANCES:-20}
+    
+    # Validate required variables
+    if [ -z "$WORKER_ID" ] || [ -z "$WORKER_REGION" ] || [ -z "$MASTER_IP" ]; then
+        echo "❌ Error: Required environment variables not set"
+        echo ""
+        echo "Please set these variables before running:"
+        echo "  export WORKER_ID=\"worker-2\""
+        echo "  export WORKER_REGION=\"sg\""
+        echo "  export MASTER_IP=\"84.247.136.121\""
+        echo ""
+        echo "Then run:"
+        echo "  curl -fsSL https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo -E bash"
+        echo ""
+        echo "Or download and run interactively:"
+        echo "  wget https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh"
+        echo "  sudo bash install-worker-online.sh"
+        exit 1
+    fi
+fi
 
 echo ""
 echo "Configuration:"
@@ -82,11 +132,16 @@ echo "  Region: $WORKER_REGION"
 echo "  Master IP: $MASTER_IP"
 echo "  Tor Instances: $TOR_INSTANCES"
 echo ""
-read -p "Continue? (y/n): " CONFIRM
 
-if [ "$CONFIRM" != "y" ]; then
-    echo "Installation cancelled"
-    exit 0
+if [ "$INTERACTIVE" = true ]; then
+    read -p "Continue? (y/n): " CONFIRM
+    if [ "$CONFIRM" != "y" ]; then
+        echo "Installation cancelled"
+        exit 0
+    fi
+else
+    echo "Auto-continuing in non-interactive mode..."
+    sleep 2
 fi
 
 # Download and extract worker files
@@ -187,7 +242,7 @@ echo "Worker Status:"
 docker compose ps
 
 echo ""
-echo "Checking Tor bootstrap..."
+echo "Checking Tor bootstrap (this may take a minute)..."
 sleep 20
 BOOTSTRAPPED=$(docker logs rotating-proxy 2>&1 | grep -c "Bootstrapped 100" || true)
 echo "Tor instances bootstrapped: $BOOTSTRAPPED / $TOR_INSTANCES"
