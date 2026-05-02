@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # ProxyRay Worker - Auto Installer
-# Version: 1.0.2
+# Version: 1.0.3
 # 
 # Usage: ./install-worker.sh
 #
@@ -61,14 +61,40 @@ echo ""
 
 # Ask for configuration
 read -p "Enter Worker ID (e.g., worker-2): " WORKER_ID
+while [ -z "$WORKER_ID" ]; do
+    echo "❌ Worker ID cannot be empty!"
+    read -p "Enter Worker ID (e.g., worker-2): " WORKER_ID
+done
+
 read -p "Enter Worker Region (e.g., sg, us, eu): " WORKER_REGION
+while [ -z "$WORKER_REGION" ]; do
+    echo "❌ Worker Region cannot be empty!"
+    read -p "Enter Worker Region (e.g., sg, us, eu): " WORKER_REGION
+done
+
 read -p "Enter Worker Public IP (this server's public IP): " PUBLIC_IP
+while [ -z "$PUBLIC_IP" ]; do
+    echo "❌ Public IP cannot be empty!"
+    read -p "Enter Worker Public IP (this server's public IP): " PUBLIC_IP
+done
+
 read -p "Enter Master Server IP: " MASTER_IP
+while [ -z "$MASTER_IP" ]; do
+    echo "❌ Master Server IP cannot be empty!"
+    read -p "Enter Master Server IP: " MASTER_IP
+done
+
 read -p "Enter Master Database Password [proxy_pass]: " DB_PASS
 DB_PASS=${DB_PASS:-proxy_pass}
 read -p "Enter Master Redis Password [proxy_redis_pass]: " REDIS_PASS
 REDIS_PASS=${REDIS_PASS:-proxy_redis_pass}
+
 read -p "Enter Admin Token (must match master): " ADMIN_TOKEN
+while [ -z "$ADMIN_TOKEN" ]; do
+    echo "❌ Admin Token cannot be empty!"
+    read -p "Enter Admin Token (must match master): " ADMIN_TOKEN
+done
+
 read -p "Enter number of Tor instances [20]: " TOR_INSTANCES
 TOR_INSTANCES=${TOR_INSTANCES:-20}
 
@@ -110,6 +136,8 @@ echo "Applying worker mode patches..."
 python3 << 'PATCH_EOF'
 import os
 import re
+
+# Already in /opt/proxy-worker from cd command above
 
 # Patch 1: usageTracker.ts
 print("  📝 Patching usageTracker.ts...")
