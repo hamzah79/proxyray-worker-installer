@@ -1,21 +1,27 @@
 #!/bin/bash
 #
 # ProxyRay Worker - One-Line Installer
-# Version: 1.0.1
+# Version: 1.0.2
 # 
 # Usage: 
-#   Method 1 (Interactive):
+#   Method 1 (Interactive - Public Repo):
 #     wget https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh
 #     sudo bash install-worker-online.sh
 #
-#   Method 2 (With environment variables):
+#   Method 2 (Interactive - Private Repo):
+#     export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
+#     wget --header="Authorization: token $GITHUB_TOKEN" https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh
+#     sudo -E bash install-worker-online.sh
+#
+#   Method 3 (Non-Interactive with Env Vars):
+#     export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"  # For private repo
 #     export WORKER_ID="worker-2"
 #     export WORKER_REGION="sg"
 #     export MASTER_IP="84.247.136.121"
 #     export DB_PASS="proxy_pass"
 #     export REDIS_PASS="proxy_redis_pass"
 #     export TOR_INSTANCES="20"
-#     curl -fsSL https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo -E bash
+#     curl -H "Authorization: token $GITHUB_TOKEN" -fsSL https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo -E bash
 #
 
 set -e
@@ -161,13 +167,28 @@ cd "$INSTALL_DIR"
 
 # Download worker package
 echo "Downloading from: $DOWNLOAD_BASE_URL/$WORKER_PACKAGE"
-if command -v wget &> /dev/null; then
-    wget -q --show-progress "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -O /tmp/worker.tar.gz
-elif command -v curl &> /dev/null; then
-    curl -fsSL "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -o /tmp/worker.tar.gz
+
+# Check if GITHUB_TOKEN is set (for private repos)
+if [ -n "$GITHUB_TOKEN" ]; then
+    echo "Using GitHub token for private repository..."
+    if command -v wget &> /dev/null; then
+        wget -q --show-progress --header="Authorization: token $GITHUB_TOKEN" "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -O /tmp/worker.tar.gz
+    elif command -v curl &> /dev/null; then
+        curl -H "Authorization: token $GITHUB_TOKEN" -fsSL "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -o /tmp/worker.tar.gz
+    else
+        echo "Error: wget or curl required"
+        exit 1
+    fi
 else
-    echo "Error: wget or curl required"
-    exit 1
+    # Public repo - no token needed
+    if command -v wget &> /dev/null; then
+        wget -q --show-progress "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -O /tmp/worker.tar.gz
+    elif command -v curl &> /dev/null; then
+        curl -fsSL "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -o /tmp/worker.tar.gz
+    else
+        echo "Error: wget or curl required"
+        exit 1
+    fi
 fi
 
 echo "Extracting..."
