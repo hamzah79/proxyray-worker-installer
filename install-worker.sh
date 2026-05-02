@@ -166,6 +166,11 @@ CIRCUIT_BREAKER_MINIMUM_REQUESTS=10
 # ── Logging & Migration ──
 LOG_LEVEL=info
 AUTO_MIGRATE=false
+
+# ── Worker-specific: Disable write operations ──
+DISABLE_USAGE_TRACKING=true
+ENABLE_METRICS=false
+ENABLE_ANALYTICS=false
 EOF
 
 echo ".env file created"
