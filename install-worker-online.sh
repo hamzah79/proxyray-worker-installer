@@ -26,9 +26,6 @@
 
 set -e
 
-DOWNLOAD_BASE_URL="https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main"
-WORKER_PACKAGE="proxy-worker-master.tar.gz"
-
 echo "========================================="
 echo "  ProxyRay Worker - One-Line Installer"
 echo "========================================="
