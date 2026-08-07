@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # ProxyRay Worker - One-Line Installer
-# Version: 1.0.6
+# Version: 2.0.0
 # 
 # Usage: 
 #   Method 1 (Interactive - Public Repo):
@@ -186,9 +186,9 @@ else
     sleep 2
 fi
 
-# Download and extract worker files
+# Clone latest code from GitHub repository
 echo ""
-echo "Downloading worker package..."
+echo "Cloning latest ProxyRay code from GitHub..."
 INSTALL_DIR="/opt/proxy-worker"
 
 # Backup existing installation if exists
@@ -201,35 +201,19 @@ fi
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# Download worker package
-echo "Downloading from: $DOWNLOAD_BASE_URL/$WORKER_PACKAGE"
+# Clone from GitHub repository
+echo "Cloning from: https://github.com/hamzah79/proxyray-proxy.git"
 
-# Check if GITHUB_TOKEN is set (for private repos)
-if [ -n "$GITHUB_TOKEN" ]; then
-    echo "Using GitHub token for private repository..."
-    if command -v wget &> /dev/null; then
-        wget -q --show-progress --header="Authorization: token $GITHUB_TOKEN" "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -O /tmp/worker.tar.gz
-    elif command -v curl &> /dev/null; then
-        curl -H "Authorization: token $GITHUB_TOKEN" -fsSL "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -o /tmp/worker.tar.gz
-    else
-        echo "Error: wget or curl required"
-        exit 1
-    fi
+if command -v git &> /dev/null; then
+    git clone https://github.com/hamzah79/proxyray-proxy.git .
 else
-    # Public repo - no token needed
-    if command -v wget &> /dev/null; then
-        wget -q --show-progress "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -O /tmp/worker.tar.gz
-    elif command -v curl &> /dev/null; then
-        curl -fsSL "$DOWNLOAD_BASE_URL/$WORKER_PACKAGE" -o /tmp/worker.tar.gz
-    else
-        echo "Error: wget or curl required"
-        exit 1
-    fi
+    echo "Installing git..."
+    apt-get update -qq
+    apt-get install -y git
+    git clone https://github.com/hamzah79/proxyray-proxy.git .
 fi
 
-echo "Extracting..."
-tar xzf /tmp/worker.tar.gz -C "$INSTALL_DIR" --strip-components=1
-rm /tmp/worker.tar.gz
+echo "✅ Code cloned successfully"
 
 # Patch source code to skip database writes in worker mode
 echo ""
