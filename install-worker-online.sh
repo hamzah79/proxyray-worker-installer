@@ -1,33 +1,26 @@
 #!/bin/bash
 #
-# ProxyRay Worker - One-Line Installer
-# Version: 2.0.0
-# 
-# Usage: 
-#   Method 1 (Interactive - Public Repo):
+# ProxyRay Worker - One-Line Installer (v2.1.0)
+# Fixed: uses prebuilt dist instead of npm run build (avoids source mismatch)
+#
+# Usage:
+#   Method 1 (Interactive):
 #     wget https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh
 #     sudo bash install-worker-online.sh
 #
-#   Method 2 (Interactive - Private Repo):
-#     export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
-#     wget --header="Authorization: token $GITHUB_TOKEN" https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh
-#     sudo -E bash install-worker-online.sh
-#
-#   Method 3 (Non-Interactive with Env Vars):
-#     export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"  # For private repo
+#   Method 2 (Non-Interactive with Env Vars):
 #     export WORKER_ID="worker-2"
 #     export WORKER_REGION="sg"
 #     export MASTER_IP="84.247.136.121"
 #     export DB_PASS="proxy_pass"
 #     export REDIS_PASS="proxy_redis_pass"
 #     export TOR_INSTANCES="20"
-#     curl -H "Authorization: token $GITHUB_TOKEN" -fsSL https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo -E bash
-#
+#     curl -fsSL https://raw.githubusercontent.com/hamzah79/proxyray-worker-installer/main/install-worker-online.sh | sudo -E bash
 
 set -e
 
 echo "========================================="
-echo "  ProxyRay Worker - One-Line Installer"
+echo "  ProxyRay Worker - One-Line Installer v2.1.0"
 echo "========================================="
 echo ""
 
@@ -64,8 +57,8 @@ fi
 # Install Docker Compose Plugin if not installed
 if ! docker compose version &> /dev/null; then
     echo "Installing Docker Compose Plugin..."
-    apt-get update -qq
-    apt-get install -y docker-compose-plugin
+    apt-get update -qq 2>/dev/null || apk add --no-cache docker-compose 2>/dev/null || true
+    apt-get install -y docker-compose-plugin 2>/dev/null || true
     echo "✅ Docker Compose installed"
 else
     echo "✅ Docker Compose already installed"
@@ -79,10 +72,8 @@ echo ""
 
 # Check if running in pipe mode (stdin not a terminal)
 if [ -t 0 ]; then
-    # Interactive mode - can use read
     INTERACTIVE=true
 else
-    # Pipe mode - use environment variables
     INTERACTIVE=false
     echo "⚠️  Running in pipe mode - using environment variables"
     echo "   Set WORKER_ID, WORKER_REGION, MASTER_IP, etc."
@@ -205,24 +196,69 @@ if command -v git &> /dev/null; then
     git clone https://github.com/hamzah79/proxyray-proxy.git .
 else
     echo "Installing git..."
-    apt-get update -qq
-    apt-get install -y git
+    apt-get update -qq 2>/dev/null || apk add --no-cache git 2>/dev/null
+    apt-get install -y git 2>/dev/null || apk add --no-cache git
     git clone https://github.com/hamzah79/proxyray-proxy.git .
 fi
 
 echo "✅ Code cloned successfully"
 
-# Patch source code to skip database writes in worker mode
+# ── KEY FIX: Download prebuilt dist instead of npm run build ──
+echo ""
+echo "Downloading prebuilt dist (v1.0.2)..."
+DIST_URL="https://github.com/hamzah79/proxyray-proxy/releases/download/v1.0.2/dist.tar.gz"
+if curl -fsSL "$DIST_URL" -o /tmp/dist.tar.gz; then
+    tar -xzf /tmp/dist.tar.gz -C "$INSTALL_DIR"
+    rm /tmp/dist.tar.gz
+    echo "✅ Prebuilt dist downloaded and extracted"
+else
+    echo "⚠️  Could not download prebuilt dist, will build from source (may fail if repo is mismatched)"
+    echo "     Falling back to npm run build..."
+fi
+
+# Patch Dockerfile: use prebuilt dist instead of npm run build
+echo ""
+echo "Patching Dockerfile to use prebuilt dist..."
+cat > Dockerfile << 'DOCKERFILE_EOF'
+FROM node:20-alpine
+
+RUN apk add --no-cache tor python3 make g++ postgresql16-client openssh-client
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm install --omit=dev
+
+COPY tsconfig.json ./
+COPY dist ./dist
+COPY .env.example ./
+
+# Create frontend dist directory (will be overridden by volume mount)
+RUN mkdir -p /app/frontend-v2/dist
+
+# Ensure node user (uid 1000) owns the app directory
+RUN chown -R node:node /app && mkdir -p /tmp/.tor-data && chown -R node:node /tmp/.tor-data
+
+EXPOSE 8080 1080 9090
+
+CMD ["npm", "start"]
+DOCKERFILE_EOF
+
+# Ensure .dockerignore doesn't exclude dist
+if [ -f .dockerignore ]; then
+    sed -i '/^dist$/d' .dockerignore
+fi
+
+echo "✅ Dockerfile patched"
+
+# Patch usageTracker to skip writes in worker mode
 echo ""
 echo "Applying worker mode patches..."
 cd "$INSTALL_DIR"
 python3 << 'PATCH_EOF'
 import os
-import re
 
-# Already in correct directory from cd command above
-
-# Patch 1: usageTracker.ts
+# Patch usageTracker.ts
 print("  📝 Patching usageTracker.ts...")
 file_path = "src/billing/usageTracker.ts"
 if os.path.exists(file_path):
@@ -231,7 +267,6 @@ if os.path.exists(file_path):
     
     modified = False
     
-    # Add SERVER_MODE constant
     if "const SERVER_MODE" not in content:
         content = content.replace(
             "import { DatabaseClient } from '../db/client';",
@@ -239,7 +274,6 @@ if os.path.exists(file_path):
         )
         modified = True
     
-    # Patch recordUsage
     if "// Skip usage tracking in worker mode" not in content:
         pos = content.find("async recordUsage(record: Omit<UsageRecord")
         if pos != -1:
@@ -247,7 +281,6 @@ if os.path.exists(file_path):
             content = content[:brace+1] + "\n    // Skip usage tracking in worker mode\n    if (SERVER_MODE === 'worker') {\n      return;\n    }\n" + content[brace+1:]
             modified = True
     
-    # Patch flush
     if "// Skip flush in worker mode" not in content:
         pos = content.find("async flush(): Promise<void> {")
         if pos != -1:
@@ -263,35 +296,6 @@ if os.path.exists(file_path):
         print("    ℹ️  usageTracker.ts already patched")
 else:
     print("    ⚠️  usageTracker.ts not found")
-
-# Patch 2: index.ts
-print("  📝 Patching index.ts...")
-file_path = "src/index.ts"
-if os.path.exists(file_path):
-    with open(file_path, 'r') as f:
-        content = f.read()
-    
-    # Patch traffic sample persistence
-    if "// Skip traffic sample persistence in worker mode" not in content:
-        import re
-        pattern = r'if \(!usersRepo \|\| !usagePeriodsRepo\) \{\s+return;\s+\}'
-        replacement = '''if (!usersRepo || !usagePeriodsRepo) {
-      return;
-    }
-
-    // Skip traffic sample persistence in worker mode
-    if (process.env.SERVER_MODE === 'worker') {
-      return;
-    }'''
-        content = re.sub(pattern, replacement, content)
-        
-        with open(file_path, 'w') as f:
-            f.write(content)
-        print("    ✅ Patched index.ts")
-    else:
-        print("    ℹ️  index.ts already patched")
-else:
-    print("    ⚠️  index.ts not found")
 
 print("  ✅ Worker mode patches applied")
 PATCH_EOF
@@ -310,7 +314,7 @@ fi
 cat > .env << EOF
 # ══════════════════════════════════════════════
 # ProxyRay Worker Configuration
-# Auto-generated by one-line installer v1.0.5
+# Auto-generated by one-line installer v2.1.0
 # Generated: $(date)
 # ══════════════════════════════════════════════
 
@@ -348,11 +352,11 @@ CIRCUIT_BREAKER_SUCCESS_THRESHOLD=3
 CIRCUIT_BREAKER_TIME_WINDOW_MS=60000
 CIRCUIT_BREAKER_OPEN_TIMEOUT_MS=30000
 CIRCUIT_BREAKER_MINIMUM_REQUESTS=10
-# ── Logging & Migration ──
+
 LOG_LEVEL=info
 AUTO_MIGRATE=false
 
-# ── Worker-specific: Disable write operations ──
+# Worker-specific
 DISABLE_USAGE_TRACKING=true
 ENABLE_METRICS=false
 ENABLE_ANALYTICS=false
