@@ -206,10 +206,10 @@ echo "✅ Code cloned successfully"
 # ── KEY FIX: Download prebuilt dist instead of npm run build ──
 echo ""
 echo "Downloading prebuilt dist (v1.0.2)..."
-DIST_URL="https://github.com/hamzah79/proxyray-proxy/releases/download/v1.0.2/dist.tar.gz"
-if curl -fsSL "$DIST_URL" -o /tmp/dist.tar.gz; then
-    tar -xzf /tmp/dist.tar.gz -C "$INSTALL_DIR"
-    rm /tmp/dist.tar.gz
+DIST_URL="https://github.com/hamzah79/proxyray-proxy/releases/download/v1.0.2/dist-release.tar.gz"
+if curl -fsSL "$DIST_URL" -o /tmp/dist-release.tar.gz; then
+    tar -xzf /tmp/dist-release.tar.gz -C "$INSTALL_DIR"
+    rm /tmp/dist-release.tar.gz
     echo "✅ Prebuilt dist downloaded and extracted"
 else
     echo "⚠️  Could not download prebuilt dist, will build from source (may fail if repo is mismatched)"
